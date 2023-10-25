@@ -1,16 +1,16 @@
 #!/bin/bash
 
 #VARIABLES
-PORT=5556
+port=5556
 
 #OPTS
-while getopts :d:p: FLAGS; do
-	case $FLAGS in
+while getopts :d:p: flags; do
+	case $flags in
 	d)
-		PRISMA_DIR=$OPTARG
+		prismaDir=$OPTARG
 		;;
 	p)
-		PORT=$OPTARG
+		port=$OPTARG
 		;;
 	?)
 		echo "Error: -$OPTARG is not an option"
@@ -19,7 +19,7 @@ while getopts :d:p: FLAGS; do
 done
 
 #CHANGE TO PRISMA DIRECTORY
-if [ -z "$PRISMA_DIR" ]; then
+if [ -z "$prismaDir" ]; then
 	echo ""
 	echo "Error: Prisma directory required."
 	echo ""
@@ -30,7 +30,7 @@ if [ -z "$PRISMA_DIR" ]; then
 	exit 1
 fi
 
-cd "$PRISMA_DIR" || {
+cd "$prismaDir" || {
 	echo ""
 	echo "Error: $PRISMA_DIR is not a directory."
 	echo ""
@@ -48,30 +48,30 @@ function printOpts {
 }
 
 function startDev {
-	if [ -z "$DEV_PID" ]; then
-		DEV_OUTPUT_FILE=$(mktemp)
+	if [ -z "$devPid" ]; then
+		devOutputFile=$(mktemp)
 
-		yarn dev --port "$PORT" >"$DEV_OUTPUT_FILE" &
-		DEV_PID=$!
+		yarn dev --port "$port" >"$devOutputFile" &
+		devPid=$!
 
-		while ! grep -q "Prisma Studio is up" "$DEV_OUTPUT_FILE"; do
+		while ! grep -q "Prisma Studio is up" "$devOutputFile"; do
 			sleep 1
 		done
 
 		echo ""
-		echo "Prisma Studio running on port $PORT ..."
+		echo "Prisma Studio running on port $port ..."
 		printOpts
 
-		rm -rf "$DEV_OUTPUT_FILE"
+		rm -rf "$devOutputFile"
 	fi
 
 }
 
 function stopDev {
-	if [ -n "$DEV_PID" ]; then
-		kill "$DEV_PID"
-		wait "$DEV_PID"
-		DEV_PID=""
+	if [ -n "$devPid" ]; then
+		kill "$devPid"
+		wait "$devPid"
+		devPid=""
 	fi
 }
 
@@ -87,22 +87,22 @@ function restartDev {
 
 function push {
 	yarn db:push &
-	PUSH_PID=$!
+	pushPid=$!
 
-	wait "$PUSH_PID"
+	wait "$pushPid"
 	printOpts
 
-	PUSH_PID=""
+	pushPid=""
 }
 
 function generate {
 	yarn db:generate &
-	GEN_PID=$!
+	genPid=$!
 
-	wait "$GEN_PID"
+	wait "$genPid"
 	printOpts
 
-	GEN_PID=""
+	genPid=""
 }
 
 #START PROGRAM
@@ -112,7 +112,7 @@ startDev
 while :; do
 	read -rsn 1 key
 
-	if [ -z "$PRISMA_DIR" ]; then
+	if [ -z "$prismaDir" ]; then
 		break
 	fi
 

@@ -1,13 +1,13 @@
 #!/bin/bash
 
 #VARAIABLES
-HANDLE_KEYS=1
+handleKeys=1
 
 #OPTS
-while getopts :d:p: FLAGS; do
-	case $FLAGS in
+while getopts :d:p: flags; do
+	case $flags in
 	d)
-		PROJECT_DIR=$OPTARG
+		projectDir=$OPTARG
 		;;
 	?)
 		echo "Error: -$OPTARG is not an option"
@@ -35,15 +35,15 @@ function printOpts {
 }
 
 function startServer {
-	if [ -z "$WEB_PID" ]; then
+	if [ -z "$webPid" ]; then
 		printOpts
 
 		yarn web &
 
 		while true; do
-			PID=$(lsof -i :3000 | awk '$2 == "PID" {next} {print $2; exit}')
-			if [ -n "$PID" ]; then
-				WEB_PID="$PID"
+			pid=$(lsof -i :3000 | awk '$2 == "PID" {next} {print $2; exit}')
+			if [ -n "$pid" ]; then
+				webPid="$pid"
 				break
 			fi
 			sleep 1
@@ -52,14 +52,14 @@ function startServer {
 }
 
 function stopServer {
-	if [ -n "$WEB_PID" ]; then
-		kill "$WEB_PID"
+	if [ -n "$webPid" ]; then
+		kill "$webPid"
 
-		while ps -p "$WEB_PID" >/dev/null; do
+		while ps -p "$webPid" >/dev/null; do
 			sleep 1
 		done
 
-		WEB_PID=""
+		webPid=""
 	fi
 }
 
@@ -82,9 +82,9 @@ function installAll {
 	echo ""
 
 	yarn &
-	YARN_PID=$!
+	yarnPid=$!
 
-	wait "$YARN_PID"
+	wait "$yarnPid"
 
 	clear
 	echo ""
@@ -94,14 +94,14 @@ function installAll {
 }
 
 function installNew {
-	HANDLE_KEYS=0
+	handleKeys=0
 	stopServer
 
 	echo ""
-	read -rp "Enter the name of the package: " PACKAGE_NAME
+	read -rp "Enter the name of the package: " packageName
 
 	echo ""
-	read -rp "Is the package a dev dependency? y/n: " IS_DEV
+	read -rp "Is the package a dev dependency? y/n: " isDev
 
 	echo ""
 	echo "Where would you like to install the package?"
@@ -117,48 +117,48 @@ function installNew {
 
 	case "$key" in
 	1)
-		cd "$PROJECT_DIR/apps/expo" || throwDirError "$PROJECT_DIR/apps/expo"
+		cd "$projectDir/apps/expo" || throwDirError "$projectDir/apps/expo"
 		;;
 	2)
-		cd "$PROJECT_DIR/apps/next" || throwDirError "$PROJECT_DIR/apps/next"
+		cd "$projectDir/apps/next" || throwDirError "$projectDir/apps/next"
 		;;
 	3)
-		cd "$PROJECT_DIR/packages/app" || throwDirError "$PROJECT_DIR/packages/app"
+		cd "$projectDir/packages/app" || throwDirError "$projectDir/packages/app"
 		;;
 	4)
-		cd "$PROJECT_DIR/packages/server" || throwDirError "$PROJECT_DIR/packages/server"
+		cd "$projectDir/packages/server" || throwDirError "$projectDir/packages/server"
 		;;
 	5)
-		cd "$PROJECT_DIR/packages/db" || throwDirError "$PROJECT_DIR/packages/db"
+		cd "$projectDir/packages/db" || throwDirError "$projectDir/packages/db"
 		;;
 	esac
 
 	echo ""
-	echo "Installing $PACKAGE_NAME ..."
+	echo "Installing $packageName ..."
 	echo ""
 
-	if [[ "$IS_DEV" == 'y' || "$IS_DEV" == 'Y' ]]; then
-		yarn add -D "$PACKAGE_NAME" &
-		YARN_PID=$!
+	if [[ "$isDev" == 'y' || "$isDev" == 'Y' ]]; then
+		yarn add -D "$packageName" &
+		yarnPid=$!
 	else
-		yarn add "$PACKAGE_NAME" &
-		YARN_PID=$!
+		yarn add "$packageName" &
+		yarnPid=$!
 	fi
 
-	wait "$YARN_PID"
+	wait "$yarnPid"
 
 	clear
 	echo ""
-	echo "$PACKAGE_NAME installed ..."
+	echo "$packageName installed ..."
 	echo ""
 
-	cd "$PROJECT_DIR" || throwDirError "$PROJECT_DIR"
+	cd "$projectDir" || throwDirError "$projectDir"
 	startServer
-	HANDLE_KEYS=1
+	handleKeys=1
 }
 
 #CHANGE TO PROJECT DIRECTORY
-if [ -z "$PROJECT_DIR" ]; then
+if [ -z "$projectDir" ]; then
 	echo ""
 	echo "Error: Project directory required."
 	echo ""
@@ -169,14 +169,14 @@ if [ -z "$PROJECT_DIR" ]; then
 	exit 1
 fi
 
-cd "$PROJECT_DIR" || throwDirError "$PROJECT_DIR"
+cd "$projectDir" || throwDirError "$projectDir"
 
 #START WEB SERVER
 startServer
 
 #HANDLE KEY EVENTS
 while :; do
-	if [ "$HANDLE_KEYS" -eq 1 ]; then
+	if [ "$handleKeys" -eq 1 ]; then
 		read -rsn 1 key
 
 		case "$key" in

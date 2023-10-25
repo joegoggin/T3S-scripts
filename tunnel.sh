@@ -1,16 +1,16 @@
 #!/bin/bash
 
 #VARIABLES
-PORT=3000
+port=3000
 
 #OPTS
-while getopts :p:e: FLAGS; do
-	case $FLAGS in
+while getopts :p:e: flags; do
+	case $flags in
 	e)
-		ENV_FILE=$OPTARG
+		envFile=$OPTARG
 		;;
 	p)
-		PORT=$OPTARG
+		port=$OPTARG
 		;;
 	?)
 		echo "Error: -$OPTARG is not an option"
@@ -20,52 +20,55 @@ done
 
 #FUNCTIONS
 function startTunnel {
-	if [ -z "$LT_PID" ]; then
+	if [ -z "$ltPid" ]; then
 		echo ""
 
-		LT_OUTPUT_FILE=$(mktemp)
+		ltOutputFile=$(mktemp)
 
-		ngrok http "$PORT" --log=stdout >"$LT_OUTPUT_FILE" &
-		LT_PID=$!
+		ngrok http "$port" --log=stdout >"$ltOutputFile" &
+		ltPid=$!
 
-		while ! grep -q "started tunnel" "$LT_OUTPUT_FILE"; do
+		while ! grep -q "started tunnel" "$ltOutputFile"; do
 			sleep 1
 		done
 
-		URL=$(grep "msg=\"started tunnel\"" "$LT_OUTPUT_FILE" | sed 's/.*url=//')
+		url=$(grep "msg=\"started tunnel\"" "$ltOutputFile" | sed 's/.*url=//')
 
-		if [ -n "$ENV_FILE" ]; then
-			NEW_LINE="const tunnel = \"$URL\";"
+		if [ -n "$envFile" ]; then
+			newLine="const tunnel = \"$url\";"
 
-			sed -i "3c$NEW_LINE" "$ENV_FILE"
+			sed -i "3c$newLine" "$envFile"
 
-			echo "Url copied to $ENV_FILE ..."
+			echo "Url copied to $envFile ..."
 			echo ""
 		fi
 
-		echo "your url is: $URL"
+		clear
 		echo ""
-		echo "Tunnel running on port $PORT ..."
+		echo "your url is: $url"
+		echo ""
+		echo "Tunnel running on port $port ..."
 		echo ""
 		echo "-- Hit 'r' to restart tunnel"
 		echo "-- Hit 'q' to quit"
 		echo ""
 	fi
 
-	rm -rf "$LT_OUTPUT_FILE"
+	rm -rf "$ltOutputFile"
 }
 
 function stopTunnel {
-	if [ -n "$LT_PID" ]; then
-		kill "$LT_PID"
-		wait "$LT_PID"
-		LT_PID=""
+	if [ -n "$ltPid" ]; then
+		kill "$ltPid"
+		wait "$ltPid"
+		ltPid=""
 	fi
 }
 
 function restartTunnel {
 	stopTunnel
 
+	clear
 	echo ""
 	echo "Restarting tunnel .."
 	echo ""
@@ -88,5 +91,6 @@ while :; do
 		stopTunnel
 		break
 		;;
+	*) ;;
 	esac
 done
