@@ -28,10 +28,25 @@ function createSession {
 	tmux new-window -d -t main: -n Tunnel "$scriptDir/tunnel.sh -e $projectDir/$projectName/packages/app/env.ts; zsh -i"
 	tmux new-window -d -t main: -n Prisma "$scriptDir/prisma.sh -d $projectDir/$projectName/packages/db; zsh -i"
 
-	tmux new-session -d -s secondary -n "Live Servers" "$scriptDir/t3sUtil.sh -d $projectDir/$projectName; zsh -i" \; split-window -h "yarn native; zsh -i"
+	tmux new-session -d -s secondary -n "Live Servers" "$scriptDir/t3sUtil.sh -d $projectDir/$projectName -w 'Live Servers'; zsh -i"
 
 	echo ""
 	echo "Tmux session generated ..."
+	echo ""
+}
+
+function killSession {
+	tmux kill-session -t main >/dev/null 2>&1 &
+	mainPid=$!
+
+	tmux kill-session -t secondary >/dev/null 2>&1 &
+	secPid=$!
+
+	wait "$mainPid"
+	wait "$secPid"
+
+	echo ""
+	echo "Session killed ..."
 	echo ""
 }
 
@@ -53,7 +68,7 @@ fi
 
 rm -rf "$pgOutputFile"
 
-while getopts :p:l flags; do
+while getopts :p:lk flags; do
 	case $flags in
 	l)
 		cd "$projectDir" || {
@@ -61,6 +76,9 @@ while getopts :p:l flags; do
 			exit 1
 		}
 		ls --color=auto
+		;;
+	k)
+		killSession
 		;;
 	p)
 		projectName=$OPTARG

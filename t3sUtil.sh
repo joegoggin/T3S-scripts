@@ -4,8 +4,11 @@
 handleKeys=1
 
 #OPTS
-while getopts :d:p: flags; do
+while getopts :d:w:p: flags; do
 	case $flags in
+	w)
+		windowName=$OPTARG
+		;;
 	d)
 		projectDir=$OPTARG
 		;;
@@ -54,6 +57,7 @@ function startServer {
 	if [ -z "$webPid" ]; then
 		printOpts
 
+		tmux split-window -h -t "$windowName" -d "echo ''; echo 'Restarting native server ...'; echo ''; yarn native"
 		yarn web &
 
 		while true; do
@@ -69,6 +73,7 @@ function startServer {
 
 function stopServer {
 	if [ -n "$webPid" ]; then
+		tmux send-keys -t 2 C-c
 		kill "$webPid"
 
 		while ps -p "$webPid" >/dev/null; do
@@ -292,7 +297,7 @@ fi
 
 cd "$projectDir" || throwDirError "$projectDir"
 
-#START WEB SERVER
+#START SERVERS AND CREATE SPLIT
 startServer
 
 #HANDLE KEY EVENTS
