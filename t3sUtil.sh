@@ -29,8 +29,24 @@ function printOpts {
 	echo "-- Hit 'c' to clear screen"
 	echo "-- Hit 'i' to install all packages"
 	echo "-- Hit 'n' to install a new package"
+	echo "-- Hit 'x' to remove a package"
 	echo "-- Hit 'h' to show options"
 	echo "-- Hit 'q' to quit"
+	echo ""
+}
+
+function printLocations {
+	echo ""
+	echo "-- Hit '1' for native only"
+	echo "-- Hit '2' for web only"
+	echo "-- Hit '3' for native and web"
+	echo "-- Hit '4' for server"
+	echo "-- Hit '5' for db"
+
+	if [ -d "$projectDir/packages/email" ]; then
+		echo "-- Hit '6' for email"
+	fi
+
 	echo ""
 }
 
@@ -77,6 +93,7 @@ function restartServer {
 function installAll {
 	stopServer
 
+	clear
 	echo ""
 	echo "Installing Packages ..."
 	echo ""
@@ -93,28 +110,7 @@ function installAll {
 	startServer
 }
 
-function installNew {
-	handleKeys=0
-	stopServer
-
-	echo ""
-	read -rp "Enter the name of the package: " packageName
-
-	echo ""
-	read -rp "Is the package a dev dependency? y/n: " isDev
-
-	echo ""
-	echo "Where would you like to install the package?"
-	echo ""
-	echo "-- Hit '1' for native only"
-	echo "-- Hit '2' for web only"
-	echo "-- Hit '3' for native and web"
-	echo "-- Hit '4' for server"
-	echo "-- Hit '5' for db"
-	echo ""
-
-	read -rsn 1 key
-
+function cdByKey {
 	case "$key" in
 	1)
 		cd "$projectDir/apps/expo" || throwDirError "$projectDir/apps/expo"
@@ -131,7 +127,60 @@ function installNew {
 	5)
 		cd "$projectDir/packages/db" || throwDirError "$projectDir/packages/db"
 		;;
+	6)
+		if [ -d "$projectDir/packages/email" ]; then
+			cd "$projectDir/packages/email" || throwDirError "$projectDir/packages/email"
+		fi
+		;;
+
 	esac
+}
+
+function search {
+	searchOutputFile=$(mktemp)
+
+	npm search "$packageName" >"$searchOutputFile" &
+	sePid=$!
+
+	wait "$sePid"
+
+	searchOutput=$(cat "$searchOutputFile")
+
+	searchResult=$(echo "$searchOutput" | head -n 2 | tail -n 1 | awk '{print $1}')
+}
+
+function installNew {
+	handleKeys=0
+	stopServer
+
+	clear
+	echo ""
+	read -rp "Enter the name of the package: " packageName
+
+	while true; do
+		search
+
+		if [ "$searchResult" == "$packageName" ]; then
+			break
+		else
+			clear
+			echo ""
+			echo "Error: $packageName doesn't exist."
+			echo ""
+			read -rp "Enter a valid package name: " packageName
+		fi
+	done
+
+	echo ""
+	read -rp "Is the package a dev dependency? y/n: " isDev
+
+	echo ""
+	echo "Where would you like to install the package?"
+	printLocations
+
+	read -rsn 1 key
+
+	cdByKey
 
 	echo ""
 	echo "Installing $packageName ..."
@@ -151,6 +200,78 @@ function installNew {
 	echo ""
 	echo "$packageName installed ..."
 	echo ""
+
+	cd "$projectDir" || throwDirError "$projectDir"
+	startServer
+	handleKeys=1
+}
+
+function remove {
+	handleKeys=0
+	stopServer
+
+	clear
+	echo ""
+	read -rp "Enter the name of the package: " packageName
+
+	echo ""
+	echo "Where is the package installed?"
+	printLocations
+
+	read -rsn 1 key
+
+	cdByKey
+
+	removePackage=1
+
+	while true; do
+		dependencies=$(jq -r '.dependencies | keys_unsorted[]' package.json)
+		devDependencies=$(jq -r '.devDependencies | keys_unsorted[]' package.json)
+
+		if (
+			echo "$dependencies"
+			echo "$devDependencies"
+		) | grep -q "\"$packageName\""; then
+			break
+		else
+			clear
+			echo ""
+			echo "Error: $packageName is not installed at that location."
+			echo ""
+			echo "Current Directory: $(pwd)"
+			echo ""
+			echo "Installed Packages:"
+			echo ""
+			echo "$dependencies"
+			echo "$devDependencies"
+			echo ""
+			read -rp "Would you like to check another location? y/n: " checkAgain
+
+			if [[ "$checkAgain" == 'y' || "$checkAgain" == "Y" ]]; then
+				printLocations
+
+				read -rsn 1 key
+
+				cdByKey
+			else
+				removePackage=0
+				clear
+				break
+			fi
+		fi
+	done
+
+	if [ "$removePackage" -eq 1 ]; then
+		yarn remove "$packageName" &
+		rePid=$!
+
+		wait "$rePid"
+
+		clear
+		echo ""
+		echo "$packageName removed ..."
+		echo ""
+	fi
 
 	cd "$projectDir" || throwDirError "$projectDir"
 	startServer
@@ -192,6 +313,9 @@ while :; do
 			;;
 		n)
 			installNew
+			;;
+		x)
+			remove
 			;;
 		h)
 			printOpts
