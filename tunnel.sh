@@ -1,7 +1,8 @@
 #!/bin/bash
 
 #VARIABLES
-port=3000
+configDir="$HOME/.config/t3s"
+configFile="$configDir/tunnel.conf"
 
 #OPTS
 while getopts :p:e: flags; do
@@ -19,6 +20,10 @@ while getopts :p:e: flags; do
 done
 
 #FUNCTIONS
+function createConfig {
+    echo "port=3000">"$configFile"
+}
+
 function startTunnel {
 	if [ -z "$ltPid" ]; then
 		echo ""
@@ -75,6 +80,12 @@ function restartTunnel {
 
 	startTunnel
 }
+
+# HANDLE CONFIG
+mkdir -p "$configDir" || exit 1
+
+[[ -f "$configFile" ]] || createConfig
+source "$configFile"
 
 #START PROGRAM
 startTunnel

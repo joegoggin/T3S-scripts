@@ -2,7 +2,13 @@
 
 # VARIABLES
 scriptDir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
-projectDir=~/Projects
+configDir="$HOME/.config/t3s"
+configFile="$configDir/open.conf"
+
+# FUNCTIONS
+function createConfig {
+    echo "projectDir=~/Projects" >"$configFile"
+}
 
 function createSession {
 	cd "$projectDir/$projectName" || {
@@ -67,6 +73,12 @@ if grep -q "no response" "$pgOutputFile"; then
 fi
 
 rm -rf "$pgOutputFile"
+
+# HANDLE CONFIG
+mkdir -p "$configDir" || exit 1
+
+[[ -f "$configFile" ]] || createConfig
+source "$configFile"
 
 while getopts :p:lk flags; do
 	case $flags in

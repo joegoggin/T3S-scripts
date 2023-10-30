@@ -1,7 +1,8 @@
 #!/bin/bash
 
 #VARIABLES
-port=5556
+configDir="$HOME/.config/t3s"
+configFile="$configDir/prisma.conf"
 
 #OPTS
 while getopts :d:p: flags; do
@@ -38,6 +39,10 @@ cd "$prismaDir" || {
 }
 
 #FUNCTIONS
+function createConfig {
+    echo "port=5556">"$configFile"
+}
+
 function printOpts {
 	echo ""
 	echo "-- Hit 'r' to restart Prisma Studio"
@@ -105,8 +110,16 @@ function generate {
 	genPid=""
 }
 
+#HANDLE CONFIG
+mkdir -p "$configDir" || exit 1
+
+[[ -f "$configFile" ]] || createConfig
+source "$configFile"
+
 #START PROGRAM
 startDev
+
+
 
 #HANDLE KEY EVENTS
 while :; do
