@@ -7,7 +7,11 @@ configFile="$configDir/open.conf"
 
 # FUNCTIONS
 function createConfig {
-    echo "projectDir=~/Projects" >"$configFile"
+	echo "
+    projectDir=~/Projects
+    attach=1
+    isWsl=1
+    " >"$configFile"
 }
 
 function createSession {
@@ -28,7 +32,7 @@ function createSession {
 		echo ""
 		echo "Run 'tmux ls' to see list of all running sessions."
 		echo ""
-		return
+		exit 1
 	fi
 
 	tmux new-window -d -t main: -n Tunnel "$scriptDir/tunnel.sh -e $projectDir/$projectName/packages/app/env.ts; zsh -i"
@@ -54,6 +58,15 @@ function killSession {
 	echo ""
 	echo "Session killed ..."
 	echo ""
+}
+
+function attach {
+	if [ "$attach" -eq 1 ]; then
+		if [ "$isWsl" -eq 1 ]; then
+			cmd.exe /c "wt.exe" -p "Secondary"
+			tmux a -t main
+		fi
+	fi
 }
 
 #START POSTGRESQL
@@ -95,6 +108,7 @@ while getopts :p:lk flags; do
 	p)
 		projectName=$OPTARG
 		createSession
+		attach
 		;;
 	?)
 		echo "Error: -$OPTARG is not an option"

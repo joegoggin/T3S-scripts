@@ -68,6 +68,8 @@ function startServer {
 			fi
 			sleep 1
 		done
+
+		xdg-open http://localhost:3000
 	fi
 }
 
