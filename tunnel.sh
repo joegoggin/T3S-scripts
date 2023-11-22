@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #VARIABLES
+scriptDir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 configDir="$HOME/.config/t3s"
 configFile="$configDir/tunnel.conf"
 
@@ -21,7 +22,7 @@ done
 
 #FUNCTIONS
 function createConfig {
-    echo "port=3000">"$configFile"
+	cp $scriptDir/defaultConfig/tunnel.conf ~/.config/t3s/tunnel.conf
 }
 
 function startTunnel {

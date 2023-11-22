@@ -7,11 +7,7 @@ configFile="$configDir/open.conf"
 
 # FUNCTIONS
 function createConfig {
-	echo "
-    projectDir=~/Projects
-    attach=1
-    isWsl=1
-    " >"$configFile"
+	cp $scriptDir/defaultConfig/open.conf ~/.config/t3s/open.conf
 }
 
 function createSession {
@@ -40,6 +36,15 @@ function createSession {
 
 	tmux new-session -d -s secondary -n "Live Servers" "$scriptDir/t3sUtil.sh -d $projectDir/$projectName -w 'Live Servers'; zsh -i"
 
+	if grep -q "duplicate session" "$tmuxOutputFile"; then
+		echo ""
+		echo "Error: Session named secondary already exists."
+		echo ""
+		echo "Run 'tmux ls' to see list of all running sessions."
+		echo ""
+		exit 1
+	fi
+
 	echo ""
 	echo "Tmux session generated ..."
 	echo ""
@@ -62,10 +67,8 @@ function killSession {
 
 function attach {
 	if [ "$attach" -eq 1 ]; then
-		if [ "$isWsl" -eq 1 ]; then
-			cmd.exe /c "wt.exe" -p "Secondary"
-			tmux a -t main
-		fi
+		eval $attachSecondaryCMD &>/dev/null &
+		tmux a -t main
 	fi
 }
 

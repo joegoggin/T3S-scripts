@@ -2,6 +2,9 @@
 
 #VARAIABLES
 handleKeys=1
+scriptDir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+configDir="$HOME/.config/t3s"
+configFile="$configDir/util.conf"
 
 #OPTS
 while getopts :d:w:p: flags; do
@@ -19,6 +22,10 @@ while getopts :d:w:p: flags; do
 done
 
 #FUNCTIONS
+function createConfig {
+	cp $scriptDir/defaultConfig/util.conf ~/.config/t3s/util.conf
+}
+
 function throwDirError {
 	echo ""
 	echo "Error: $1 is not a directory."
@@ -69,7 +76,7 @@ function startServer {
 			sleep 1
 		done
 
-		xdg-open http://localhost:3000
+		eval $browserOpenCMD http://localhost:3000
 	fi
 }
 
@@ -298,6 +305,12 @@ if [ -z "$projectDir" ]; then
 fi
 
 cd "$projectDir" || throwDirError "$projectDir"
+
+# HANDLE CONFIG
+mkdir -p "$configDir" || exit 1
+
+[[ -f "$configFile" ]] || createConfig
+source "$configFile"
 
 #START SERVERS AND CREATE SPLIT
 startServer

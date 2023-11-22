@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #VARIABLES
+scriptDir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 configDir="$HOME/.config/t3s"
 configFile="$configDir/prisma.conf"
 
@@ -40,7 +41,7 @@ cd "$prismaDir" || {
 
 #FUNCTIONS
 function createConfig {
-    echo "port=5556">"$configFile"
+	cp $scriptDir/defaultConfig/prisma.conf ~/.config/t3s/prisma.conf
 }
 
 function printOpts {
@@ -118,8 +119,6 @@ source "$configFile"
 
 #START PROGRAM
 startDev
-
-
 
 #HANDLE KEY EVENTS
 while :; do
