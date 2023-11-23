@@ -61,36 +61,53 @@ function printLocations {
 }
 
 function startServer {
-	if [ -z "$webPid" ]; then
-		printOpts
 
-		tmux split-window -h -t "$windowName" -d "echo ''; echo 'Restarting native server ...'; echo ''; yarn native"
-		yarn web &
-
-		while true; do
-			pid=$(lsof -i :3000 | awk '$2 == "PID" {next} {print $2; exit}')
-			if [ -n "$pid" ]; then
-				webPid="$pid"
-				break
-			fi
-			sleep 1
-		done
-
-		eval $browserOpenCMD http://localhost:3000
+	if ! docker ps --format '{{.Names}}' | grep -q "$postgresContainerName"; then
+		docker compose up -d postgres
 	fi
+
+	docker compose up -d web
+	docker compose up -d prisma-studio
+
+	while ! docker ps --format '{{.Names}}' | grep -q "$webContainerName"; do
+		sleep 1
+	done
+
+	tmux split-window -h -t "$windowName" -d "echo ''; echo 'starting native server ...'; echo ''; docker compose run --name $nativeContainerName native" &
+
+	clear
+	printOpts
+
+	docker logs -f milo-web &
+
+	eval $browserOpenCMD http://localhost:3000
+	eval $browserOpenCMD http://localhost:5556
 }
 
 function stopServer {
-	if [ -n "$webPid" ]; then
-		tmux send-keys -t 2 C-c
-		kill "$webPid"
+	clear
+	echo ""
+	echo "Stopping containers ..."
+	echo ""
 
-		while ps -p "$webPid" >/dev/null; do
-			sleep 1
-		done
+	echo "Stopping $nativeContainerName ..."
+	echo ""
+	docker stop "$nativeContainerName"
 
-		webPid=""
-	fi
+	echo ""
+	echo "Removing $nativeContainerName ..."
+	echo ""
+	docker rm "$nativeContainerName"
+	echo ""
+
+	echo "Stopping and removing remaining containers ..."
+	echo ""
+	docker compose down
+	echo ""
+
+	echo ""
+	echo "Done ... All containers stopped and removed!"
+	echo ""
 }
 
 function restartServer {
@@ -311,8 +328,13 @@ mkdir -p "$configDir" || exit 1
 
 [[ -f "$configFile" ]] || createConfig
 source "$configFile"
+webContainerName="$(basename $projectDir)-web"
+nativeContainerName="$(basename $projectDir)-native"
+postgresContainerName="$(basename $projectDir)-postgres"
+prismaContainerName="$(basename $projectDir)-prisma-studio"
 
 #START SERVERS AND CREATE SPLIT
+docker compose build
 startServer
 
 #HANDLE KEY EVENTS
