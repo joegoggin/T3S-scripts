@@ -40,6 +40,7 @@ function startTunnel {
 
 		url=$(grep "msg=\"started tunnel\"" "$ltOutputFile" | sed 's/.*url=//')
 
+		clear
 		if [ -n "$envFile" ]; then
 			newLine="const tunnel = \"$url\";"
 
@@ -49,7 +50,6 @@ function startTunnel {
 			echo ""
 		fi
 
-		clear
 		echo ""
 		echo "your url is: $url"
 		echo ""

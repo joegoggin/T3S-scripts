@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#VARAIABLES
+#VARIABLES
 handleKeys=1
 scriptDir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 configDir="$HOME/.config/t3s"
@@ -9,9 +9,6 @@ configFile="$configDir/util.conf"
 #OPTS
 while getopts :d:w:p: flags; do
 	case $flags in
-	w)
-		windowName=$OPTARG
-		;;
 	d)
 		projectDir=$OPTARG
 		;;
@@ -41,6 +38,7 @@ function printOpts {
 	echo "-- Hit 'n' to install a new package"
 	echo "-- Hit 'x' to remove a package"
 	echo "-- Hit 'h' to show options"
+	echo "-- Hit 'l' to log into Expo CLI"
 	echo "-- Hit 'q' to quit"
 	echo ""
 }
@@ -66,14 +64,13 @@ function startServer {
 		docker compose up -d postgres
 	fi
 
-	docker compose up -d web
-	docker compose up -d prisma-studio
+	docker compose up -d
 
 	while ! docker ps --format '{{.Names}}' | grep -q "$webContainerName"; do
 		sleep 1
 	done
 
-	tmux split-window -h -t "$windowName" -d "echo ''; echo 'starting native server ...'; echo ''; docker compose run --name $nativeContainerName native" &
+	tmux split-window -h -d "echo ''; echo 'starting native server ...'; echo ''; docker attach $nativeContainerName" &
 
 	clear
 	printOpts
@@ -86,20 +83,6 @@ function startServer {
 
 function stopServer {
 	clear
-	echo ""
-	echo "Stopping containers ..."
-	echo ""
-
-	echo "Stopping $nativeContainerName ..."
-	echo ""
-	docker stop "$nativeContainerName"
-
-	echo ""
-	echo "Removing $nativeContainerName ..."
-	echo ""
-	docker rm "$nativeContainerName"
-	echo ""
-
 	echo "Stopping and removing remaining containers ..."
 	echo ""
 	docker compose down
@@ -309,6 +292,18 @@ function remove {
 	handleKeys=1
 }
 
+function expoLogin {
+	tmux send-keys -t 2 C-p C-q
+	tmux split-window -h "docker exec -it $nativeContainerName npx expo login"
+
+	while tmux list-panes -F "#{pane_index}" | grep -q 2; do
+		sleep 1
+	done
+
+	docker compose restart native
+	tmux split-window -h -d "docker attach milo-native"
+}
+
 #CHANGE TO PROJECT DIRECTORY
 if [ -z "$projectDir" ]; then
 	echo ""
@@ -362,12 +357,13 @@ while :; do
 		h)
 			printOpts
 			;;
-
+		l)
+			expoLogin
+			;;
 		q)
 			stopServer
 			break
 			;;
-		*) ;;
 		esac
 	fi
 done
