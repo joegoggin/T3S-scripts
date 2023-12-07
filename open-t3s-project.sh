@@ -51,6 +51,26 @@ function createSession {
 }
 
 function killSession {
+	clear
+
+	cd "$projectDir/$projectName" || {
+		echo "Error: $projectDir is not a directory."
+		exit 1
+	}
+
+	echo "Stopping and removing remaining containers ..."
+	echo ""
+	docker compose down
+	echo ""
+
+	echo ""
+	echo "Done ... All containers stopped and removed!"
+	echo ""
+
+	echo ""
+	echo "Killing TMUX Sessions ..."
+	echo ""
+
 	tmux kill-session -t main >/dev/null 2>&1 &
 	mainPid=$!
 
@@ -61,8 +81,9 @@ function killSession {
 	wait "$secPid"
 
 	echo ""
-	echo "Session killed ..."
+	echo "Done ... TMUX sessions killed"
 	echo ""
+
 }
 
 function attach {
@@ -96,7 +117,7 @@ mkdir -p "$configDir" || exit 1
 [[ -f "$configFile" ]] || createConfig
 source "$configFile"
 
-while getopts :p:lk flags; do
+while getopts :p:lk: flags; do
 	case $flags in
 	l)
 		cd "$projectDir" || {
@@ -106,6 +127,7 @@ while getopts :p:lk flags; do
 		ls --color=auto
 		;;
 	k)
+		projectName=$OPTARG
 		killSession
 		;;
 	p)
