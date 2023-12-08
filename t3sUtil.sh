@@ -2,6 +2,7 @@
 
 #VARIABLES
 handleKeys=1
+isStart=1
 scriptDir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 configDir="$HOME/.config/t3s"
 configFile="$configDir/util.conf"
@@ -59,11 +60,6 @@ function printLocations {
 }
 
 function startServer {
-
-	if ! docker ps --format '{{.Names}}' | grep -q "$postgresContainerName"; then
-		docker compose up -d postgres
-	fi
-
 	docker compose up -d
 
 	while ! docker ps --format '{{.Names}}' | grep -q "$webContainerName"; do
@@ -75,10 +71,15 @@ function startServer {
 	clear
 	printOpts
 
-	docker logs -f milo-web &
+	docker logs -f "$webContainerName" &
 
-	eval $browserOpenCMD http://localhost:3000
-	eval $browserOpenCMD http://localhost:5556
+	sleep 5
+
+	if [ "$isStart" -eq 1 ]; then
+		eval "$browserOpenCMD http://localhost:$prismaPort"
+		eval "$browserOpenCMD http://localhost:$webPort"
+		isStart=0
+	fi
 }
 
 function stopServer {
