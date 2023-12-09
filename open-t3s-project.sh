@@ -32,7 +32,7 @@ function createSession {
 	fi
 
 	tmux new-window -d -t main: -n Tunnel "$scriptDir/tunnel.sh -e $projectDir/$projectName/packages/app/env.ts; zsh -i"
-	tmux new-window -d -t main: -n Prisma "$scriptDir/prisma.sh -d $projectDir/$projectName/packages/db; zsh -i"
+	tmux new-window -d -t main: -n Prisma "$scriptDir/prisma.sh -d $projectDir/$projectName; zsh -i"
 
 	tmux new-session -d -s secondary -n "Live Servers" "$scriptDir/t3sUtil.sh -d $projectDir/$projectName -w 'Live Servers'; zsh -i"
 

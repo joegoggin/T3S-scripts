@@ -4,15 +4,23 @@
 scriptDir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 configDir="$HOME/.config/t3s"
 configFile="$configDir/prisma.conf"
+startContainer=1
+message=""
 
 #OPTS
-while getopts :d:p: flags; do
+while getopts :d:wp: flags; do
 	case $flags in
 	d)
-		prismaDir=$OPTARG
+		projectDir=$OPTARG
+		prismaContainerName="$(basename $projectDir)-prisma-studio"
+		webContainerName="$(basename $projectDir)-web"
+		nativeContainerName="$(basename $projectDir)-native"
 		;;
 	p)
 		port=$OPTARG
+		;;
+	w)
+		startContainer=0
 		;;
 	?)
 		echo "Error: -$OPTARG is not an option"
@@ -21,9 +29,9 @@ while getopts :d:p: flags; do
 done
 
 #CHANGE TO PRISMA DIRECTORY
-if [ -z "$prismaDir" ]; then
+if [ -z "$projectDir" ]; then
 	echo ""
-	echo "Error: Prisma directory required."
+	echo "Error: Project directory required."
 	echo ""
 	echo "You can enter a primsa directory by using the -d flag."
 	echo ""
@@ -32,9 +40,9 @@ if [ -z "$prismaDir" ]; then
 	exit 1
 fi
 
-cd "$prismaDir" || {
+cd "$projectDir" || {
 	echo ""
-	echo "Error: $PRISMA_DIR is not a directory."
+	echo "Error: $projectDir is not a directory."
 	echo ""
 	exit 1
 }
@@ -53,62 +61,92 @@ function printOpts {
 	echo ""
 }
 
-function startDev {
-	if [ -z "$devPid" ]; then
-		devOutputFile=$(mktemp)
+function displayMessage {
+	while ! docker ps --format '{{.Names}}' | grep -wq "$prismaContainerName"; do
+		sleep 1
+	done
 
-		yarn dev --port "$port" >"$devOutputFile" &
-		devPid=$!
+	clear
 
-		while ! grep -q "Prisma Studio is up" "$devOutputFile"; do
-			sleep 1
-		done
-
+	if [ "$message" != "" ]; then
 		echo ""
-		echo "Prisma Studio running on port $port ..."
-		printOpts
-
-		rm -rf "$devOutputFile"
+		echo "$message"
+		echo ""
 	fi
 
+	echo ""
+	echo "Prisma Studio running on port $port ..."
+	printOpts
+
+	message=""
+}
+
+function startDev {
+	if [ "$startContainer" -eq 1 ]; then
+		echo ""
+		echo "Starting Prisma Studio ..."
+		echo ""
+
+		docker compose up -d --build prisma-studio
+	else
+		echo ""
+		echo "Waiting for Prisma Studio to Start ..."
+		echo ""
+	fi
+
+	displayMessage
 }
 
 function stopDev {
-	if [ -n "$devPid" ]; then
-		kill "$devPid"
-		wait "$devPid"
-		devPid=""
-	fi
+	echo ""
+	echo "Stopping and Removing Prisma Studio Container..."
+	echo ""
+
+	docker compose down prisma-studio
+
+	echo ""
+	echo "Done ... Container Stopped and Removed!"
+	echo ""
 }
 
 function restartDev {
-	stopDev
+	clear
 
 	echo ""
 	echo "Restarting Primsa Studio ..."
 	echo ""
 
-	startDev
+	docker compose restart prisma-studio
+
+	displayMessage
 }
 
 function push {
-	yarn db:push &
-	pushPid=$!
+	clear
 
-	wait "$pushPid"
-	printOpts
+	echo ""
+	echo "Pushing changes to the DB ..."
+	echo ""
 
-	pushPid=""
+	docker exec -it "$prismaContainerName" sh -c "cd packages/db && yarn db:push"
+
+	message="Done ... Changes pushed to DB and Prisma client genterated!"
+	generate
 }
 
 function generate {
-	yarn db:generate &
-	genPid=$!
+	echo ""
+	echo "Generating Prisma client for Web and Native ..."
+	echo ""
 
-	wait "$genPid"
-	printOpts
+	docker exec "$webContainerName" sh -c "cd packages/db && yarn db:generate"
+	docker exec "$nativeContainerName" sh -c "cd packages/db && yarn db:generate"
 
-	genPid=""
+	if [ -z "$message" ]; then
+		message="Done ... Prisma client generated!"
+	fi
+
+	displayMessage
 }
 
 #HANDLE CONFIG
@@ -124,7 +162,7 @@ startDev
 while :; do
 	read -rsn 1 key
 
-	if [ -z "$prismaDir" ]; then
+	if [ -z "$projectDir" ]; then
 		break
 	fi
 
