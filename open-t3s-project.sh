@@ -93,31 +93,22 @@ function attach {
 	fi
 }
 
-#START POSTGRESQL
-pgOutputFile=$(mktemp)
-
-pg_isready >"$pgOutputFile"
-
-if grep -q "no response" "$pgOutputFile"; then
-	echo ""
-	echo "Starting postgres ..."
-	echo ""
-
-	sudo service postgresql start >/dev/null 2>&1
-
-	echo ""
-	echo "Postgres started ..."
-fi
-
-rm -rf "$pgOutputFile"
-
 # HANDLE CONFIG
 mkdir -p "$configDir" || exit 1
 
 [[ -f "$configFile" ]] || createConfig
 source "$configFile"
 
-while getopts :p:lk: flags; do
+# START DOCKER
+if ! pgrep dockerd >/dev/null 2>&1; then
+	echo ""
+	echo "Starting Docker ..."
+	echo ""
+
+	eval "$dockerStartCMD"
+fi
+
+while getopts :o:lk: flags; do
 	case $flags in
 	l)
 		cd "$projectDir" || {
@@ -130,7 +121,7 @@ while getopts :p:lk: flags; do
 		projectName=$OPTARG
 		killSession
 		;;
-	p)
+	o)
 		projectName=$OPTARG
 		createSession
 		attach
