@@ -95,34 +95,39 @@ function stopServer {
 }
 
 function restartServer {
-	stopServer
-
 	clear
 	echo ""
-	echo "Restarting Web Server ..."
+	echo "Restarting Live Servers ..."
 	echo ""
 
-	startServer
+	docker compose restart
+
+	clear
+
+	tmux split-window -h -d "docker attach $nativeContainerName" &
+	tmux send-keys -t 2 c
+
+	printOpts
+	docker logs -f "$webContainerName" &
+
 }
 
 function installAll {
-	stopServer
-
 	clear
 	echo ""
 	echo "Installing Packages ..."
 	echo ""
 
-	yarn &
-	yarnPid=$!
-
-	wait "$yarnPid"
+	docker exec "$webContainerName" sh -c "yarn"
+	docker exec "$nativeContainerName" sh -c "yarn"
+	docker exec "$prismaContainerName" sh -c "yarn"
 
 	clear
 	echo ""
 	echo "Packages installed ..."
 	echo ""
-	startServer
+
+	restartServer
 }
 
 function cdByKey {
