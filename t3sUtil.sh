@@ -130,48 +130,50 @@ function installAll {
 	restartServer
 }
 
-function cdByKey {
+function setInstallInfoByKey {
 	case "$key" in
 	1)
-		cd "$projectDir/apps/expo" || throwDirError "$projectDir/apps/expo"
+		installDir="apps/expo"
+		installContainer="$nativeContainerName"
 		;;
 	2)
-		cd "$projectDir/apps/next" || throwDirError "$projectDir/apps/next"
+		installDir="apps/next"
+		installContainer="$webContainerName"
 		;;
 	3)
-		cd "$projectDir/packages/app" || throwDirError "$projectDir/packages/app"
+		installDir="packages/app"
+		installContainer="webAndNative"
 		;;
 	4)
-		cd "$projectDir/packages/server" || throwDirError "$projectDir/packages/server"
+		installDir="packages/server"
+		installContainer="$webContainerName"
 		;;
 	5)
-		cd "$projectDir/packages/db" || throwDirError "$projectDir/packages/db"
+		installDir="packages/db"
+		installContainer="$prismaContainerName"
 		;;
 	6)
 		if [ -d "$projectDir/packages/email" ]; then
-			cd "$projectDir/packages/email" || throwDirError "$projectDir/packages/email"
+			installDir="packages/email"
 		fi
 		;;
-
 	esac
 }
 
 function search {
 	searchOutputFile=$(mktemp)
 
-	npm search "$packageName" >"$searchOutputFile" &
-	sePid=$!
-
-	wait "$sePid"
+	docker exec "$webContainerName" sh -c "npm search $packageName" >"$searchOutputFile"
 
 	searchOutput=$(cat "$searchOutputFile")
 
 	searchResult=$(echo "$searchOutput" | head -n 2 | tail -n 1 | awk '{print $1}')
+
+	rm -rf "$searchOutputFile"
 }
 
 function installNew {
 	handleKeys=0
-	stopServer
 
 	clear
 	echo ""
@@ -200,29 +202,34 @@ function installNew {
 
 	read -rsn 1 key
 
-	cdByKey
+	setInstallInfoByKey
 
 	echo ""
 	echo "Installing $packageName ..."
 	echo ""
 
 	if [[ "$isDev" == 'y' || "$isDev" == 'Y' ]]; then
-		yarn add -D "$packageName" &
-		yarnPid=$!
+		if [ "$installContainer" == "webAndNative" ]; then
+			docker exec "$webContainerName" sh -c "cd $installDir && yarn add -D $packageName"
+			docker exec "$nativeContainerName" sh -c "cd $installDir && yarn add -D $packageName"
+		else
+			docker exec "$installContainer" sh -c "cd $installDir && yarn add -D $packageName"
+		fi
 	else
-		yarn add "$packageName" &
-		yarnPid=$!
+		if [ "$installContainer" == "webAndNative" ]; then
+			docker exec "$webContainerName" sh -c "cd $installDir && yarn add $packageName"
+			docker exec "$nativeContainerName" sh -c "cd $installDir && yarn add $packageName"
+		else
+			docker exec "$installContainer" sh -c "cd $installDir && yarn add $packageName"
+		fi
 	fi
-
-	wait "$yarnPid"
 
 	clear
 	echo ""
 	echo "$packageName installed ..."
 	echo ""
 
-	cd "$projectDir" || throwDirError "$projectDir"
-	startServer
+	restartServer
 	handleKeys=1
 }
 
