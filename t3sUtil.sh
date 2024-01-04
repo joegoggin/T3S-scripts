@@ -142,7 +142,7 @@ function setInstallInfoByKey {
 		;;
 	3)
 		installDir="packages/app"
-		installContainer="webAndNative"
+		installContainer="$webContainerName"
 		;;
 	4)
 		installDir="packages/server"
@@ -209,19 +209,9 @@ function installNew {
 	echo ""
 
 	if [[ "$isDev" == 'y' || "$isDev" == 'Y' ]]; then
-		if [ "$installContainer" == "webAndNative" ]; then
-			docker exec "$webContainerName" sh -c "cd $installDir && yarn add -D $packageName"
-			docker exec "$nativeContainerName" sh -c "cd $installDir && yarn add -D $packageName"
-		else
-			docker exec "$installContainer" sh -c "cd $installDir && yarn add -D $packageName"
-		fi
+		docker exec "$installContainer" sh -c "cd $installDir && yarn add -D $packageName"
 	else
-		if [ "$installContainer" == "webAndNative" ]; then
-			docker exec "$webContainerName" sh -c "cd $installDir && yarn add $packageName"
-			docker exec "$nativeContainerName" sh -c "cd $installDir && yarn add $packageName"
-		else
-			docker exec "$installContainer" sh -c "cd $installDir && yarn add $packageName"
-		fi
+		docker exec "$installContainer" sh -c "cd $installDir && yarn add $packageName"
 	fi
 
 	clear
@@ -235,7 +225,6 @@ function installNew {
 
 function remove {
 	handleKeys=0
-	stopServer
 
 	clear
 	echo ""
@@ -247,18 +236,21 @@ function remove {
 
 	read -rsn 1 key
 
-	cdByKey
+	setInstallInfoByKey
 
 	removePackage=1
 
 	while true; do
+		cd "$installDir" || throwDirError "$installDir"
+
 		dependencies=$(jq -r '.dependencies | keys_unsorted[]' package.json)
 		devDependencies=$(jq -r '.devDependencies | keys_unsorted[]' package.json)
 
 		if (
 			echo "$dependencies"
 			echo "$devDependencies"
-		) | grep -q "\"$packageName\""; then
+		) | grep -q "$packageName"; then
+			restart=1
 			break
 		else
 			clear
@@ -279,20 +271,19 @@ function remove {
 
 				read -rsn 1 key
 
-				cdByKey
+				setInstallInfoByKey
 			else
 				removePackage=0
+				restart=0
 				clear
 				break
 			fi
+
 		fi
 	done
 
 	if [ "$removePackage" -eq 1 ]; then
-		yarn remove "$packageName" &
-		rePid=$!
-
-		wait "$rePid"
+		docker exec "$installContainer" sh -c "cd $installDir && yarn remove $packageName"
 
 		clear
 		echo ""
@@ -301,7 +292,13 @@ function remove {
 	fi
 
 	cd "$projectDir" || throwDirError "$projectDir"
-	startServer
+
+	if [ "$restart" -eq 1 ]; then
+		restartServer
+	else
+		printOpts
+		docker logs -f "$webContainerName" &
+	fi
 	handleKeys=1
 }
 
